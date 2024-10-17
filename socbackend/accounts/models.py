@@ -1,13 +1,23 @@
 from django.db import models
 from django.contrib.auth.models import User
 from .options import DepartmentChoices, YearChoices
+from django.core.exceptions import ValidationError
 
 def upload_to_location(instance, filename):
     return "profile_pictures/{filename}".format(filename=filename)
 
+def validate_roll_number(value):
+    # Extract the first two digits (batch/year) to determine the format
+    batch_number = int(value[:2])
 
-
-
+    if batch_number >= 22:
+        # For batches >= 22, the format is BBPXXXX (no specific constraint on P)
+        if not value[2:3].isalpha() or not value[3:].isdigit() or len(value) != 7:
+            raise ValidationError("Enter a valid roll number.")
+    else:
+        # For batches < 22, the format is YYPDDCNNN (no specific constraint on P, DD, or C)
+        if not (len(value) == 9 and value[2].isalpha() and value[3:5].isalpha() and value[5:6].isdigit() and value[6:].isdigit()):
+            raise ValidationError("Enter a valid roll number.")
 
 
 # Create your models here.
@@ -26,6 +36,7 @@ class UserProfile(models.Model):
         "roll number",
         max_length=20,
         unique=True,
+        validators=[validate_roll_number],
         help_text="Required. 20 characters or fewer.",
         error_messages={
             "unique": "A user with that roll number already exists.",
